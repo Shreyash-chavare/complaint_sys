@@ -1,9 +1,10 @@
-import express from 'express'
-import authRouter from './auth.js'
-const router=express.Router();
+import express from 'express';
+import authRouter      from './auth.js';
+import complaintRouter from './complaint.js';
 
+const router = express.Router();
 
-router.use('/auth',authRouter);
-
+router.use('/auth',       authRouter);
+router.use('/complaints', complaintRouter);
 
 export default router;
