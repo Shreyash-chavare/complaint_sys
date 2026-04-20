@@ -9,8 +9,14 @@ const auditLogSchema = new mongoose.Schema({
 
   actor: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true
+    required: true,
+    refPath: "actorModel"        // dynamic ref based on actorModel field
+  },
+
+  actorModel: {
+    type: String,
+    required: true,
+    enum: ["Student", "Teacher", "Technician", "DeptAdmin", "SuperAdmin"]
   },
 
   action: {

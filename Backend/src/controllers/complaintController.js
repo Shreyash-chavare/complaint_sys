@@ -3,11 +3,12 @@ import AuditLog   from '../models/AuditLog.js';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-const logAction = async ({ complaintId, actorId, action, details }) => {
+const logAction = async ({ complaintId, actorId, actorModel = "Student", action, details }) => {
   try {
     await AuditLog.create({
       complaint : complaintId,
       actor     : actorId,
+      actorModel,              // added
       action,
       details
     });
