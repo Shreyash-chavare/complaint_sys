@@ -9,7 +9,7 @@ const feedbackSchema = new mongoose.Schema({
 
   student: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
+    ref: "Student",
     required: true
   },
 
@@ -23,5 +23,8 @@ const feedbackSchema = new mongoose.Schema({
   comment: String
 
 }, { timestamps: true });
+
+// One feedback per complaint
+feedbackSchema.index({ complaint: 1 }, { unique: true });
 
 export default mongoose.model("Feedback", feedbackSchema);
