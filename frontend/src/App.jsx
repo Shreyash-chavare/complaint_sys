@@ -1,16 +1,19 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
 
-import LandingPage      from './pages/LandingPage';
-import LoginPage        from './pages/LoginPage';
-import RegisterPage     from './pages/RegisterPage';
-import Dashboard        from './pages/Dashboard';
-import NewComplaintPage from './pages/NewComplaintPage';
-import MyComplaintsPage from './pages/MyComplaintsPage';
-import PublicFeedPage   from './pages/PublicFeedPage';
-import NotFound         from './pages/NotFound';
+import LandingPage          from './pages/LandingPage';
+import LoginPage            from './pages/LoginPage';
+import RegisterPage         from './pages/RegisterPage';
+import Dashboard            from './pages/Dashboard';
+import NewComplaintPage     from './pages/NewComplaintPage';
+import MyComplaintsPage     from './pages/MyComplaintsPage';
+import PublicFeedPage       from './pages/PublicFeedPage';
+import TechnicianDashboard  from './pages/TechnicianDashboard';
+import TeacherDashboard     from './pages/TeacherDashboard';
+import DeptAdminDashboard   from './pages/DeptAdminDashboard';
+import NotFound             from './pages/NotFound';
 
 export default function App() {
   return (
@@ -28,7 +31,7 @@ export default function App() {
             <ProtectedRoute><Dashboard /></ProtectedRoute>
           } />
 
-          {/* Protected — Student only */}
+          {/* Student only */}
           <Route path="/complaints/new" element={
             <ProtectedRoute roles={['Student']}><NewComplaintPage /></ProtectedRoute>
           } />
@@ -36,7 +39,22 @@ export default function App() {
             <ProtectedRoute roles={['Student']}><MyComplaintsPage /></ProtectedRoute>
           } />
           <Route path="/complaints/feed" element={
-            <ProtectedRoute roles={['Student']}><PublicFeedPage /></ProtectedRoute>
+            <ProtectedRoute roles={['Student', 'Teacher', 'Technician', 'DeptAdmin']}><PublicFeedPage /></ProtectedRoute>
+          } />
+
+          {/* Technician */}
+          <Route path="/technician" element={
+            <ProtectedRoute roles={['Technician']}><TechnicianDashboard /></ProtectedRoute>
+          } />
+
+          {/* Teacher */}
+          <Route path="/teacher" element={
+            <ProtectedRoute roles={['Teacher']}><TeacherDashboard /></ProtectedRoute>
+          } />
+
+          {/* DeptAdmin */}
+          <Route path="/admin" element={
+            <ProtectedRoute roles={['DeptAdmin']}><DeptAdminDashboard /></ProtectedRoute>
           } />
 
           {/* Fallback */}

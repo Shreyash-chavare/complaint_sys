@@ -1,8 +1,14 @@
+import { useState } from 'react';
 import StatusBadge from './StatusBadge';
 import PriorityBadge from './PriorityBadge';
+import FeedbackForm from './FeedbackForm';
+import { useAuth } from '../context/AuthContext';
 
 export default function ComplaintCard({ complaint, mode = 'feed', onUpvote, onWithdraw, onReopen }) {
   const { _id, title, description, category, priority, status, upvotes = [], student, createdAt, location } = complaint;
+  const { user } = useAuth();
+  const [showFeedback, setShowFeedback] = useState(false);
+  const [feedbackDone, setFeedbackDone] = useState(false);
 
   const timeAgo = (date) => {
     const diff = Date.now() - new Date(date).getTime();
@@ -16,6 +22,8 @@ export default function ComplaintCard({ complaint, mode = 'feed', onUpvote, onWi
   const loc = location && (location.building || location.floor || location.room)
     ? [location.building, location.floor, location.room].filter(Boolean).join(', ')
     : null;
+
+  const canLeaveFeedback = mode === 'my' && status === 'resolved' && user?.role === 'Student' && !feedbackDone;
 
   return (
     <div className="glass slide-up" style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12, transition: 'all 0.2s' }}>
@@ -47,7 +55,6 @@ export default function ComplaintCard({ complaint, mode = 'feed', onUpvote, onWi
       {/* Footer */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          {/* Student info (feed mode) */}
           {mode === 'feed' && student && (
             <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
               👤 {student.name}
@@ -61,11 +68,8 @@ export default function ComplaintCard({ complaint, mode = 'feed', onUpvote, onWi
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           {/* Upvote (feed mode) */}
           {mode === 'feed' && (
-            <button
-              className="btn btn-sm btn-secondary"
-              onClick={() => onUpvote?.(_id)}
-              style={{ display: 'flex', alignItems: 'center', gap: 5 }}
-            >
+            <button className="btn btn-sm btn-secondary" onClick={() => onUpvote?.(_id)}
+              style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
               👍 <span>{upvotes.length}</span>
             </button>
           )}
@@ -73,6 +77,13 @@ export default function ComplaintCard({ complaint, mode = 'feed', onUpvote, onWi
           {/* My complaints actions */}
           {mode === 'my' && (
             <>
+              {status === 'resolved' && !feedbackDone && (
+                <button className="btn btn-sm btn-secondary"
+                  onClick={() => setShowFeedback(f => !f)}
+                  style={{ borderColor: showFeedback ? 'var(--accent)' : undefined, color: showFeedback ? 'var(--accent)' : undefined }}>
+                  ⭐ Feedback
+                </button>
+              )}
               {status === 'resolved' && (
                 <button className="btn btn-sm btn-success" onClick={() => onReopen?.(_id)}>
                   🔄 Reopen
@@ -87,6 +98,19 @@ export default function ComplaintCard({ complaint, mode = 'feed', onUpvote, onWi
           )}
         </div>
       </div>
+
+      {/* Inline feedback form */}
+      {showFeedback && canLeaveFeedback && (
+        <FeedbackForm
+          complaintId={_id}
+          onSubmitted={() => { setFeedbackDone(true); setShowFeedback(false); }}
+        />
+      )}
+      {feedbackDone && mode === 'my' && (
+        <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(16,185,129,0.1)', color: 'var(--success)', fontSize: '0.82rem', fontWeight: 600 }}>
+          ✅ Feedback submitted — thank you!
+        </div>
+      )}
     </div>
   );
 }

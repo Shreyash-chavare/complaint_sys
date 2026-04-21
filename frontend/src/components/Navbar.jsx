@@ -1,29 +1,39 @@
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { useState } from 'react';
+import NotificationBell from './NotificationBell';
 
-export default function Navbar() {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [mobileOpen, setMobileOpen] = useState(false);
-
-  const handleLogout = () => { logout(); navigate('/login'); };
-
-  const isActive = (path) => location.pathname === path;
-
-  const studentLinks = [
+const NAV_LINKS = {
+  Student    : [
     { to: '/dashboard',        label: 'Dashboard' },
     { to: '/complaints/new',   label: '+ New' },
     { to: '/complaints/my',    label: 'My Complaints' },
     { to: '/complaints/feed',  label: 'Public Feed' },
-  ];
-
-  const otherLinks = [
+  ],
+  Technician : [
+    { to: '/dashboard',   label: 'Dashboard' },
+    { to: '/technician',  label: 'My Assignments' },
+    { to: '/complaints/feed', label: 'Public Feed' },
+  ],
+  Teacher    : [
     { to: '/dashboard', label: 'Dashboard' },
-  ];
+    { to: '/teacher',   label: 'My Assignments' },
+    { to: '/complaints/feed', label: 'Public Feed' },
+  ],
+  DeptAdmin  : [
+    { to: '/dashboard', label: 'Dashboard' },
+    { to: '/admin',     label: 'Dept Complaints' },
+    { to: '/complaints/feed', label: 'Public Feed' },
+  ],
+};
 
-  const links = user?.role === 'Student' ? studentLinks : otherLinks;
+export default function Navbar() {
+  const { user, logout } = useAuth();
+  const navigate         = useNavigate();
+  const location         = useLocation();
+
+  const handleLogout = () => { logout(); navigate('/login'); };
+  const isActive = (path) => location.pathname === path;
+  const links = NAV_LINKS[user?.role] || [];
 
   return (
     <nav style={{
@@ -36,41 +46,39 @@ export default function Navbar() {
         {/* Logo */}
         <Link to={user ? '/dashboard' : '/'} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{
-            width: 34, height: 34,
-            background: 'var(--gradient)',
-            borderRadius: 10,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 18,
+            width: 34, height: 34, background: 'var(--gradient)', borderRadius: 10,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
           }}>🏫</div>
           <span style={{ fontWeight: 800, fontSize: '1.05rem', letterSpacing: '-0.01em' }}>
             Complaint<span style={{ color: 'var(--accent)' }}>MS</span>
           </span>
         </Link>
 
-        {/* Desktop Nav */}
+        {/* Nav links */}
         {user && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             {links.map(l => (
               <Link key={l.to} to={l.to} className="btn btn-sm btn-secondary" style={{
-                background: isActive(l.to) ? 'var(--accent-glow)' : 'transparent',
-                borderColor: isActive(l.to) ? 'var(--accent)' : 'transparent',
-                color: isActive(l.to) ? 'var(--accent)' : 'var(--text-muted)',
+                background   : isActive(l.to) ? 'var(--accent-glow)' : 'transparent',
+                borderColor  : isActive(l.to) ? 'var(--accent)' : 'transparent',
+                color        : isActive(l.to) ? 'var(--accent)' : 'var(--text-muted)',
               }}>{l.label}</Link>
             ))}
           </div>
         )}
 
-        {/* User area */}
+        {/* Right: notification bell + user chip + logout */}
         {user ? (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <NotificationBell />
+
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8,
               background: 'var(--surface)', border: '1px solid var(--border)',
               borderRadius: 8, padding: '6px 12px',
             }}>
               <div style={{
-                width: 28, height: 28,
-                background: 'var(--gradient)', borderRadius: '50%',
+                width: 28, height: 28, background: 'var(--gradient)', borderRadius: '50%',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 fontSize: 12, fontWeight: 700,
               }}>
@@ -81,6 +89,7 @@ export default function Navbar() {
                 <div style={{ fontSize: '0.7rem', color: 'var(--accent)' }}>{user.role}</div>
               </div>
             </div>
+
             <button className="btn btn-sm btn-secondary" onClick={handleLogout}>Logout</button>
           </div>
         ) : (
