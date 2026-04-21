@@ -5,21 +5,44 @@ import {
   getPublicFeed,
   toggleUpvote,
   deleteOrWithdrawComplaint,
-  reopenComplaint
+  reopenComplaint,
+  getAssignedComplaints,
+  getDepartmentComplaints,
+  assignComplaint,
+  updateStatus,
+  getDepartmentTechnicians,
+  getComplaintById,
+  getComplaintAuditLog
 } from '../controllers/complaintController.js';
 import { verifyToken, authorizeRoles } from '../middleware/authMiddleware.js';
 import { attachmentUpload } from '../utils/multer.js';
 
 const router = express.Router();
 
-// All routes require login + Student role
-router.use(verifyToken, authorizeRoles('Student'));
+// All complaint routes require authentication
+router.use(verifyToken);
 
-router.post(  '/',              attachmentUpload,       createComplaint           );
-router.get(   '/my',                                    getMyComplaints           );
-router.get(   '/feed',                                  getPublicFeed             );
-router.patch( '/:id/upvote',                            toggleUpvote              );
-router.delete('/:id',                                   deleteOrWithdrawComplaint );
-router.patch( '/:id/reopen',                            reopenComplaint           );
+// ── Student routes ───────────────────────────────────────────────────────────
+router.post('/',           authorizeRoles('Student'),                        attachmentUpload, createComplaint);
+router.get('/my',          authorizeRoles('Student'),                        getMyComplaints);
+router.get('/feed',        authorizeRoles('Student', 'Teacher', 'Technician', 'DeptAdmin'), getPublicFeed);
+router.patch('/:id/upvote', authorizeRoles('Student'),                      toggleUpvote);
+router.delete('/:id',     authorizeRoles('Student'),                        deleteOrWithdrawComplaint);
+router.patch('/:id/reopen', authorizeRoles('Student'),                      reopenComplaint);
+
+// ── Technician / Teacher routes ──────────────────────────────────────────────
+router.get('/assigned',    authorizeRoles('Technician', 'Teacher'),          getAssignedComplaints);
+
+// ── DeptAdmin routes ─────────────────────────────────────────────────────────
+router.get('/department',  authorizeRoles('DeptAdmin'),                      getDepartmentComplaints);
+router.get('/technicians', authorizeRoles('DeptAdmin'),                      getDepartmentTechnicians);
+router.patch('/:id/assign', authorizeRoles('DeptAdmin'),                    assignComplaint);
+
+// ── Shared: status update (Technician, Teacher, DeptAdmin) ───────────────────
+router.patch('/:id/status', authorizeRoles('Technician', 'Teacher', 'DeptAdmin'), updateStatus);
+
+// ── Shared: single complaint detail + audit log ──────────────────────────────
+router.get('/:id',         getComplaintById);
+router.get('/:id/audit',   authorizeRoles('DeptAdmin'),                     getComplaintAuditLog);
 
 export default router;

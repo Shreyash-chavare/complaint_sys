@@ -14,7 +14,7 @@ const departmentSchema = new mongoose.Schema({
 
   head: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User"
+    ref: "DeptAdmin"
   }
 
 }, { timestamps: true });

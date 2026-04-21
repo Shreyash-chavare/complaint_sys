@@ -3,8 +3,14 @@ import mongoose from "mongoose";
 const notificationSchema = new mongoose.Schema({
   user: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    required: true
+    required: true,
+    refPath: "userModel"
+  },
+
+  userModel: {
+    type: String,
+    required: true,
+    enum: ["Student", "Teacher", "Technician", "DeptAdmin"]
   },
 
   message: {
@@ -12,7 +18,24 @@ const notificationSchema = new mongoose.Schema({
     required: true
   },
 
-  type: String,
+  type: {
+    type: String,
+    enum: [
+      "complaint_created",
+      "complaint_assigned",
+      "status_change",
+      "sla_warning",
+      "sla_breach",
+      "complaint_resolved",
+      "complaint_reopened",
+      "feedback_received"
+    ]
+  },
+
+  complaint: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Complaint"
+  },
 
   read: {
     type: Boolean,
@@ -20,5 +43,7 @@ const notificationSchema = new mongoose.Schema({
   }
 
 }, { timestamps: true });
+
+notificationSchema.index({ user: 1, read: 1, createdAt: -1 });
 
 export default mongoose.model("Notification", notificationSchema);
