@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
+import Select from 'react-select';
 
 const SLA_MAP = { high: '1 day', medium: '3 days', low: '5 days' };
 const SLA_COLOR = { high: 'var(--danger)', medium: 'var(--warning)', low: 'var(--success)' };
@@ -10,12 +11,19 @@ export default function NewComplaintPage() {
   const [form, setForm] = useState({
     title: '', description: '', category: 'Infrastructure',
     priority: 'low', isPrivate: false,
-    assignedTeachers: '',
+    assignedTeachers: [],
     building: '', floor: '', room: '',
   });
   const [files, setFiles] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [teachers, setTeachers] = useState([]);
+
+  useEffect(() => {
+    api.get("/complaints/teachers")
+      .then(res => setTeachers(res.data))
+      .catch(err => console.log(err));
+  }, []);
 
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
@@ -31,10 +39,9 @@ export default function NewComplaintPage() {
       fd.append('priority', form.priority);
       fd.append('isPrivate', form.isPrivate);
 
-      if (form.category === 'Academic' && form.assignedTeachers.trim()) {
-        const teachers = form.assignedTeachers.split(',').map(t => t.trim()).filter(Boolean);
-        fd.append('assignedTeachers', JSON.stringify(teachers));
-      }
+      if (form.category === 'Academic' && form.assignedTeachers.length > 0) {
+  fd.append("assignedTeachers", JSON.stringify(form.assignedTeachers));
+}
 
       const location = { building: form.building, floor: form.floor, room: form.room };
       fd.append('location', JSON.stringify(location));
@@ -124,8 +131,10 @@ export default function NewComplaintPage() {
               </div>
 
               {/* Private toggle */}
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '14px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)' }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                padding: '14px 16px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)'
+              }}>
                 <div>
                   <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>🔒 Private Complaint</div>
                   <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: 2 }}>Only visible to you and assignees</div>
@@ -152,9 +161,78 @@ export default function NewComplaintPage() {
               <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 20, color: 'var(--text-muted)' }}>👨‍🏫 Assign Teachers</h2>
               <div className="form-group">
                 <label className="form-label">Teacher IDs * (comma-separated)</label>
-                <input id="c-teachers" type="text" className="form-input"
-                  placeholder="e.g. 507f1f77bcf86cd799439011, 507f1f77bcf86cd799439012"
-                  value={form.assignedTeachers} onChange={e => set('assignedTeachers', e.target.value)} />
+                <Select
+                  options={teachers.map(t => ({
+                    value: t._id,
+                    label: t.name
+                  }))}
+
+                  value={
+                    teachers
+                      .filter(t => form.assignedTeachers[0] === t._id)
+                      .map(t => ({ value: t._id, label: t.name }))[0] || null
+                  }
+
+                  onChange={(selected) => {
+                    set('assignedTeachers', selected ? [selected.value] : []);
+                  }}
+
+                  isClearable
+                  menuPortalTarget={document.body}
+
+                  styles={{
+  control: (base, state) => ({
+    ...base,
+    backgroundColor: '#1e1e2e',   // 🔥 solid dark bg
+    borderColor: state.isFocused ? 'var(--accent)' : 'var(--border)',
+    boxShadow: state.isFocused ? '0 0 0 2px var(--accent-glow)' : 'none',
+    borderRadius: 10,
+    minHeight: 44,
+    color: '#ffffff',
+  }),
+
+  menu: (base) => ({
+    ...base,
+    backgroundColor: '#1e1e2e',   // 🔥 solid dropdown
+    border: '1px solid var(--border)',
+    borderRadius: 10,
+    opacity: 1,
+    zIndex: 9999
+  }),
+
+  menuList: (base) => ({
+    ...base,
+    backgroundColor: '#1e1e2e',   // 🔥 ensures list is solid too
+    padding: 0
+  }),
+
+  option: (base, state) => ({
+    ...base,
+    backgroundColor: state.isFocused
+      ? '#2a2a3a'
+      : state.isSelected
+        ? '#33334a'
+        : '#1e1e2e',
+    color: '#ffffff',
+    cursor: 'pointer'
+  }),
+
+  singleValue: (base) => ({
+    ...base,
+    color: '#ffffff'
+  }),
+
+  input: (base) => ({
+    ...base,
+    color: '#ffffff'
+  }),
+
+  placeholder: (base) => ({
+    ...base,
+    color: '#9ca3af'
+  })
+}}
+                />
                 <span style={{ fontSize: '0.78rem', color: 'var(--text-faint)', marginTop: 4 }}>
                   Academic complaints require at least one teacher ID
                 </span>
@@ -224,4 +302,7 @@ export default function NewComplaintPage() {
       </div>
     </div>
   );
+
+
 }
+
