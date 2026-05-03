@@ -31,6 +31,8 @@ const complaintSchema = new mongoose.Schema({
     default: "open"
   },
 
+  
+
   // Structured location instead of plain string
   location: {
     building: { type: String },
