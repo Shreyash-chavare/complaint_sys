@@ -45,6 +45,23 @@ export default function ComplaintCard({ complaint, mode = 'feed', onUpvote, onWi
         {description}
       </p>
 
+      {complaint.teacherRemark && (
+  <div style={{
+    marginTop: 10,
+    padding: 10,
+    borderRadius: 8,
+    background: 'rgba(99,102,241,0.12)',
+    border: '1px solid rgba(99,102,241,0.25)',
+    fontSize: '0.85rem',
+    lineHeight: 1.5
+  }}>
+    🧑‍🏫 <b>Teacher Remark:</b>
+    <div style={{ marginTop: 4 }}>
+      {complaint.teacherRemark}
+    </div>
+  </div>
+)}
+
       {/* Location */}
       {loc && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.8rem', color: 'var(--text-faint)' }}>
