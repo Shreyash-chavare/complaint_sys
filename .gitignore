@@ -1,0 +1,28 @@
+# Node modules (backend + frontend)
+node_modules/
+
+# Environment variables
+.env
+
+# Build folders
+build/
+dist/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# React specific
+frontend/build/
+
+# Optional: uploads (if you store images locally)
+uploads/
