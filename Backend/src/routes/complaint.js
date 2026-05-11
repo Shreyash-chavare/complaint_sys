@@ -12,7 +12,9 @@ import {
   updateStatus,
   getDepartmentTechnicians,
   getComplaintById,
-  getComplaintAuditLog
+  getComplaintAuditLog,
+  getTeachersByStudentDept,
+  addTeacherRemark
 } from '../controllers/complaintController.js';
 import { verifyToken, authorizeRoles } from '../middleware/authMiddleware.js';
 import { attachmentUpload } from '../utils/multer.js';
@@ -21,6 +23,18 @@ const router = express.Router();
 
 // All complaint routes require authentication
 router.use(verifyToken);
+
+router.get(
+  '/teachers',
+  authorizeRoles('Student'),
+  getTeachersByStudentDept
+);
+
+router.patch(
+  '/:id/remark',
+  authorizeRoles('Teacher'),
+  addTeacherRemark
+);
 
 // ── Student routes ───────────────────────────────────────────────────────────
 router.post('/',           authorizeRoles('Student'),                        attachmentUpload, createComplaint);
@@ -33,9 +47,16 @@ router.patch('/:id/reopen', authorizeRoles('Student'),                      reop
 // ── Technician / Teacher routes ──────────────────────────────────────────────
 router.get('/assigned',    authorizeRoles('Technician', 'Teacher'),          getAssignedComplaints);
 
+router.get(
+  '/teachers',
+  authorizeRoles('Student'),
+  getTeachersByStudentDept
+);
+
 // ── DeptAdmin routes ─────────────────────────────────────────────────────────
 router.get('/department',  authorizeRoles('DeptAdmin'),                      getDepartmentComplaints);
 router.get('/technicians', authorizeRoles('DeptAdmin'),                      getDepartmentTechnicians);
+
 router.patch('/:id/assign', authorizeRoles('DeptAdmin'),                    assignComplaint);
 
 // ── Shared: status update (Technician, Teacher, DeptAdmin) ───────────────────

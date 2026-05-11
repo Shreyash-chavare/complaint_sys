@@ -1,26 +1,33 @@
-import Complaint from '../models/Complaint.js';
-import AuditLog from '../models/AuditLog.js';
-import Notification from '../models/Notification.js';
-import Technician from '../models/technician.js';
-import Department from '../models/Department.js';
-import Teacher from '../models/teacher.js'
+import Complaint from "../models/Complaint.js";
+import AuditLog from "../models/AuditLog.js";
+import Notification from "../models/Notification.js";
+import Technician from "../models/technician.js";
+import Department from "../models/Department.js";
+import Teacher from "../models/teacher.js";
+import Student from "../models/student.js";
 
 // ─── SLA map (priority → hours) ─────────────────────────────────────────────
 const SLA_HOURS = { high: 24, medium: 72, low: 120 };
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-const logAction = async ({ complaintId, actorId, actorModel = "Student", action, details }) => {
+const logAction = async ({
+  complaintId,
+  actorId,
+  actorModel = "Student",
+  action,
+  details,
+}) => {
   try {
     await AuditLog.create({
       complaint: complaintId,
       actor: actorId,
       actorModel,
       action,
-      details
+      details,
     });
   } catch (err) {
-    console.error('Audit log failed:', err.message);
+    console.error("Audit log failed:", err.message);
   }
 };
 
@@ -31,19 +38,74 @@ const notify = async ({ userId, userModel, message, type, complaintId }) => {
       userModel,
       message,
       type,
-      complaint: complaintId
+      complaint: complaintId,
     });
   } catch (err) {
-    console.error('Notification failed:', err.message);
+    console.error("Notification failed:", err.message);
   }
 };
 
 // ─── Department auto-routing ─────────────────────────────────────────────────
 const KEYWORD_MAP = {
-  'IT Support': ['wifi', 'internet', 'network', 'server', 'software', 'computer', 'laptop', 'printer', 'login', 'password', 'email', 'system'],
-  'Electrical': ['power', 'electricity', 'ac', 'air conditioner', 'fan', 'wiring', 'light', 'bulb', 'switch', 'socket', 'voltage', 'generator'],
-  'Maintenance': ['plumbing', 'water', 'leak', 'furniture', 'chair', 'desk', 'table', 'door', 'window', 'lock', 'paint', 'wall', 'ceiling', 'floor', 'tile', 'cleaning'],
-  'Facilities': ['parking', 'garden', 'canteen', 'washroom', 'toilet', 'bathroom', 'elevator', 'lift', 'security', 'cctv', 'gate']
+  "IT Support": [
+    "wifi",
+    "internet",
+    "network",
+    "server",
+    "software",
+    "computer",
+    "laptop",
+    "printer",
+    "login",
+    "password",
+    "email",
+    "system",
+  ],
+  Electrical: [
+    "power",
+    "electricity",
+    "ac",
+    "air conditioner",
+    "fan",
+    "wiring",
+    "light",
+    "bulb",
+    "switch",
+    "socket",
+    "voltage",
+    "generator",
+  ],
+  Maintenance: [
+    "plumbing",
+    "water",
+    "leak",
+    "furniture",
+    "chair",
+    "desk",
+    "table",
+    "door",
+    "window",
+    "lock",
+    "paint",
+    "wall",
+    "ceiling",
+    "floor",
+    "tile",
+    "cleaning",
+  ],
+  Facilities: [
+    "parking",
+    "garden",
+    "canteen",
+    "washroom",
+    "toilet",
+    "bathroom",
+    "elevator",
+    "lift",
+    "security",
+    "cctv",
+    "gate",
+  ],
 };
 
 const detectDepartment = (title, description) => {
@@ -52,7 +114,7 @@ const detectDepartment = (title, description) => {
   let bestScore = 0;
 
   for (const [dept, keywords] of Object.entries(KEYWORD_MAP)) {
-    const score = keywords.filter(kw => text.includes(kw)).length;
+    const score = keywords.filter((kw) => text.includes(kw)).length;
     if (score > bestScore) {
       bestScore = score;
       bestDept = dept;
@@ -71,50 +133,37 @@ export const createComplaint = async (req, res) => {
       priority,
       isPrivate,
       assignedTeachers,
-      location
+      location,
     } = req.body;
 
     // Parse assignedTeachers if sent as JSON string (multipart/form-data)
     let teachers = [];
-
-if (assignedTeachers) {
-  teachers = typeof assignedTeachers === 'string'
-    ? JSON.parse(assignedTeachers)
-    : assignedTeachers;
-}
-
-let teacherDocs = [];
-
-if (teachers.length > 0) {
-  teacherDocs = await Teacher.find({
-    employeeId: { $in: teachers }
-  });
-}
-
-console.log("Parsed:", teachers);
-console.log("Found:", teacherDocs.map(t => t.employeeId));
-    const teacherIds = teacherDocs.map(t => t._id);
+    if (assignedTeachers) {
+      teachers =
+        typeof assignedTeachers === "string"
+          ? JSON.parse(assignedTeachers)
+          : assignedTeachers;
+    }
 
     // Parse location same way
     let parsedLocation = {};
     if (location) {
-      parsedLocation = typeof location === 'string'
-        ? JSON.parse(location)
-        : location;
+      parsedLocation =
+        typeof location === "string" ? JSON.parse(location) : location;
     }
 
     // Academic complaints must have at least one teacher
-    if (category === 'Academic' && teacherIds.length === 0) {
+    if (category === "Academic" && teachers.length === 0) {
       return res.status(400).json({
-        message: 'Academic complaints require at least one teacher assigned'
+        message: "Academic complaints require at least one teacher assigned",
       });
     }
 
     // Build attachments array from uploaded files
-    const attachments = (req.files || []).map(file => ({
+    const attachments = (req.files || []).map((file) => ({
       url: file.path,
-      resourceType: file.mimetype.startsWith('video/') ? 'video' : 'image',
-      originalName: file.originalname
+      resourceType: file.mimetype.startsWith("video/") ? "video" : "image",
+      originalName: file.originalname,
     }));
 
     // ── SLA deadline calculation ──
@@ -123,13 +172,16 @@ console.log("Found:", teacherDocs.map(t => t.employeeId));
 
     // ── Auto-route to department (Infrastructure only) ──
     let departmentId = null;
-    if (category === 'Infrastructure') {
+    if (category === "Infrastructure") {
       const deptName = detectDepartment(title, description);
       if (deptName) {
         let dept = await Department.findOne({ name: deptName });
         if (!dept) {
           // Auto-create the department if it doesn't exist
-          dept = await Department.create({ name: deptName, categoryKeywords: KEYWORD_MAP[deptName] || [] });
+          dept = await Department.create({
+            name: deptName,
+            categoryKeywords: KEYWORD_MAP[deptName] || [],
+          });
         }
         departmentId = dept._id;
       }
@@ -139,40 +191,41 @@ console.log("Found:", teacherDocs.map(t => t.employeeId));
       title,
       description,
       category,
-      priority: priority || 'low',
-      isPrivate: isPrivate === 'true' || isPrivate === true,
-      assignedTeachers: category === 'Academic' ? teacherIds : [],
+      priority: priority || "low",
+      isPrivate: isPrivate === "true" || isPrivate === true,
+      status: category === "Academic" ? "assigned" : "assigned",
+      assignedTeachers: category === "Academic" ? teachers : [],
       location: parsedLocation,
       attachments,
       student: req.user.id,
       slaDeadline,
-      department: departmentId
+      department: departmentId,
     });
 
     await logAction({
       complaintId: complaint._id,
       actorId: req.user.id,
-      action: 'CREATED',
-      details: `Complaint #${complaint._id} created — "${title}" [${category}] SLA: ${slaHours}h`
+      action: "CREATED",
+      details: `Complaint #${complaint._id} created — "${title}" [${category}] SLA: ${slaHours}h`,
     });
 
     // Notify assigned teachers for academic complaints
-    if (category === 'Academic' && teacherIds.length > 0) {
-      for (const teacherId of teacherIds) {
+    if (category === "Academic" && teachers.length > 0) {
+      for (const teacherId of teachers) {
         await notify({
           userId: teacherId,
-          userModel: 'Teacher',
+          userModel: "Teacher",
           message: `New academic complaint assigned to you: "${title}"`,
-          type: 'complaint_assigned',
-          complaintId: complaint._id
+          type: "complaint_assigned",
+          complaintId: complaint._id,
         });
       }
     }
 
-    res.status(201).json({ message: 'Complaint created', complaint });
+    res.status(201).json({ message: "Complaint created", complaint });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -193,21 +246,21 @@ export const getMyComplaints = async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit))
-        .populate('assignedTeachers', 'name email')
-        .populate('assignedTo', 'name email')
-        .populate('department', 'name'),
-      Complaint.countDocuments(filter)
+        .populate("assignedTeachers", "name email")
+        .populate("assignedTo", "name email")
+        .populate("department", "name"),
+      Complaint.countDocuments(filter),
     ]);
 
     res.status(200).json({
       total,
       page: Number(page),
       totalPages: Math.ceil(total / Number(limit)),
-      complaints
+      complaints,
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -218,7 +271,7 @@ export const getPublicFeed = async (req, res) => {
 
     const filter = {
       isPrivate: false,
-      status: { $ne: 'withdrawn' }
+      status: { $ne: "withdrawn" },
     };
     if (status) filter.status = status;
     if (category) filter.category = category;
@@ -231,22 +284,22 @@ export const getPublicFeed = async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit))
-        .populate('student', 'name department year')
-        .populate('assignedTeachers', 'name')
-        .populate('department', 'name')
-        .select('-attachments'),
-      Complaint.countDocuments(filter)
+        .populate("student", "name department year")
+        .populate("assignedTeachers", "name")
+        .populate("department", "name")
+        .select("-attachments"),
+      Complaint.countDocuments(filter),
     ]);
 
     res.status(200).json({
       total,
       page: Number(page),
       totalPages: Math.ceil(total / Number(limit)),
-      complaints
+      complaints,
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -256,15 +309,19 @@ export const toggleUpvote = async (req, res) => {
     const complaint = await Complaint.findById(req.params.id);
 
     if (!complaint) {
-      return res.status(404).json({ message: 'Complaint not found' });
+      return res.status(404).json({ message: "Complaint not found" });
     }
 
     if (complaint.isPrivate) {
-      return res.status(403).json({ message: 'Cannot upvote a private complaint' });
+      return res
+        .status(403)
+        .json({ message: "Cannot upvote a private complaint" });
     }
 
     if (complaint.student.toString() === req.user.id) {
-      return res.status(400).json({ message: 'Cannot upvote your own complaint' });
+      return res
+        .status(400)
+        .json({ message: "Cannot upvote your own complaint" });
     }
 
     const alreadyUpvoted = complaint.upvotes.includes(req.user.id);
@@ -278,12 +335,12 @@ export const toggleUpvote = async (req, res) => {
     await complaint.save();
 
     res.status(200).json({
-      message: alreadyUpvoted ? 'Upvote removed' : 'Upvoted',
-      upvoteCount: complaint.upvotes.length
+      message: alreadyUpvoted ? "Upvote removed" : "Upvoted",
+      upvoteCount: complaint.upvotes.length,
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -293,52 +350,51 @@ export const deleteOrWithdrawComplaint = async (req, res) => {
     const complaint = await Complaint.findById(req.params.id);
 
     if (!complaint) {
-      return res.status(404).json({ message: 'Complaint not found' });
+      return res.status(404).json({ message: "Complaint not found" });
     }
 
     // Only the owner can delete
     if (complaint.student.toString() !== req.user.id) {
-      return res.status(403).json({ message: 'Not your complaint' });
+      return res.status(403).json({ message: "Not your complaint" });
     }
 
     const isUnassigned =
-      complaint.assignedTeachers.length === 0 &&
-      !complaint.assignedTo;
+      complaint.assignedTeachers.length === 0 && !complaint.assignedTo;
 
-    if (complaint.status === 'open' && isUnassigned) {
+    if (complaint.status === "open" && isUnassigned) {
       await complaint.deleteOne();
 
       await logAction({
         complaintId: complaint._id,
         actorId: req.user.id,
-        action: 'DELETED',
-        details: `Complaint #${complaint._id} hard deleted by student`
+        action: "DELETED",
+        details: `Complaint #${complaint._id} hard deleted by student`,
       });
 
-      return res.status(200).json({ message: 'Complaint deleted' });
+      return res.status(200).json({ message: "Complaint deleted" });
     }
 
-    if (['resolved', 'closed'].includes(complaint.status)) {
+    if (["resolved", "closed"].includes(complaint.status)) {
       return res.status(400).json({
-        message: 'Cannot withdraw a resolved or closed complaint'
+        message: "Cannot withdraw a resolved or closed complaint",
       });
     }
 
-    complaint.status = 'withdrawn';
+    complaint.status = "withdrawn";
     complaint.withdrawnAt = new Date();
     await complaint.save();
 
     await logAction({
       complaintId: complaint._id,
       actorId: req.user.id,
-      action: 'WITHDRAWN',
-      details: `Complaint #${complaint._id} withdrawn by student`
+      action: "WITHDRAWN",
+      details: `Complaint #${complaint._id} withdrawn by student`,
     });
 
-    res.status(200).json({ message: 'Complaint withdrawn' });
+    res.status(200).json({ message: "Complaint withdrawn" });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -348,63 +404,64 @@ export const reopenComplaint = async (req, res) => {
     const complaint = await Complaint.findById(req.params.id);
 
     if (!complaint) {
-      return res.status(404).json({ message: 'Complaint not found' });
+      return res.status(404).json({ message: "Complaint not found" });
     }
 
     if (complaint.student.toString() !== req.user.id) {
-      return res.status(403).json({ message: 'Not your complaint' });
+      return res.status(403).json({ message: "Not your complaint" });
     }
 
-    if (complaint.status !== 'resolved') {
+    if (complaint.status !== "resolved") {
       return res.status(400).json({
-        message: 'Only resolved complaints can be reopened'
+        message: "Only resolved complaints can be reopened",
       });
     }
 
     const hoursSinceResolved =
-      (Date.now() - new Date(complaint.resolvedAt).getTime()) / (1000 * 60 * 60);
+      (Date.now() - new Date(complaint.resolvedAt).getTime()) /
+      (1000 * 60 * 60);
 
     if (hoursSinceResolved > 48) {
       return res.status(400).json({
-        message: 'Reopen window expired (48h after resolution)'
+        message: "Reopen window expired (48h after resolution)",
       });
     }
 
-    complaint.status = 'reopened';
+    complaint.status = "reopened";
     complaint.reopenedCount += 1;
     await complaint.save();
 
     await logAction({
       complaintId: complaint._id,
       actorId: req.user.id,
-      action: 'REOPENED',
-      details: `Complaint #${complaint._id} reopened by student (count: ${complaint.reopenedCount})`
+      action: "REOPENED",
+      details: `Complaint #${complaint._id} reopened by student (count: ${complaint.reopenedCount})`,
     });
 
     // Notify assigned technician / teachers
     if (complaint.assignedTo) {
       await notify({
         userId: complaint.assignedTo,
-        userModel: 'Technician',
+        userModel: "Technician",
         message: `Complaint "${complaint.title}" has been reopened by the student`,
-        type: 'complaint_reopened',
-        complaintId: complaint._id
+        type: "complaint_reopened",
+        complaintId: complaint._id,
       });
     }
     for (const teacherId of complaint.assignedTeachers) {
       await notify({
         userId: teacherId,
-        userModel: 'Teacher',
+        userModel: "Teacher",
         message: `Complaint "${complaint.title}" has been reopened by the student`,
-        type: 'complaint_reopened',
-        complaintId: complaint._id
+        type: "complaint_reopened",
+        complaintId: complaint._id,
       });
     }
 
-    res.status(200).json({ message: 'Complaint reopened', complaint });
+    res.status(200).json({ message: "Complaint reopened", complaint });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -422,12 +479,12 @@ export const getAssignedComplaints = async (req, res) => {
 
     let filter = {};
 
-    if (role === 'Technician') {
+    if (role === "Technician") {
       filter.assignedTo = req.user.id;
-    } else if (role === 'Teacher') {
+    } else if (role === "Teacher") {
       filter.assignedTeachers = req.user.id;
     } else {
-      return res.status(403).json({ message: 'Access denied' });
+      return res.status(403).json({ message: "Access denied" });
     }
 
     if (status) filter.status = status;
@@ -440,22 +497,22 @@ export const getAssignedComplaints = async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit))
-        .populate('student', 'name email department')
-        .populate('assignedTeachers', 'name email')
-        .populate('assignedTo', 'name email')
-        .populate('department', 'name'),
-      Complaint.countDocuments(filter)
+        .populate("student", "name email department")
+        .populate("assignedTeachers", "name email")
+        .populate("assignedTo", "name email")
+        .populate("department", "name"),
+      Complaint.countDocuments(filter),
     ]);
 
     res.status(200).json({
       total,
       page: Number(page),
       totalPages: Math.ceil(total / Number(limit)),
-      complaints
+      complaints,
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -468,10 +525,10 @@ export const getDepartmentComplaints = async (req, res) => {
     // Find department by admin's department name
     const adminDept = req.user.department; // from JWT — we'll need to include it
     // Fallback: look up DeptAdmin to get their department
-    const DeptAdmin = (await import('../models/deptAdmin.js')).default;
+    const DeptAdmin = (await import("../models/deptAdmin.js")).default;
     const admin = await DeptAdmin.findById(req.user.id);
     if (!admin) {
-      return res.status(404).json({ message: 'Admin not found' });
+      return res.status(404).json({ message: "Admin not found" });
     }
 
     const dept = await Department.findOne({ name: admin.department });
@@ -481,7 +538,7 @@ export const getDepartmentComplaints = async (req, res) => {
       filter.department = dept._id;
     } else {
       // If no department document, try matching by category for infra
-      filter.category = 'Infrastructure';
+      filter.category = "Infrastructure";
     }
 
     if (status) filter.status = status;
@@ -495,22 +552,22 @@ export const getDepartmentComplaints = async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(Number(limit))
-        .populate('student', 'name email department')
-        .populate('assignedTeachers', 'name email')
-        .populate('assignedTo', 'name email specialization')
-        .populate('department', 'name'),
-      Complaint.countDocuments(filter)
+        .populate("student", "name email department")
+        .populate("assignedTeachers", "name email")
+        .populate("assignedTo", "name email specialization")
+        .populate("department", "name"),
+      Complaint.countDocuments(filter),
     ]);
 
     res.status(200).json({
       total,
       page: Number(page),
       totalPages: Math.ceil(total / Number(limit)),
-      complaints
+      complaints,
     });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -522,57 +579,66 @@ export const assignComplaint = async (req, res) => {
     const complaint = await Complaint.findById(req.params.id);
 
     if (!complaint) {
-      return res.status(404).json({ message: 'Complaint not found' });
+      return res.status(404).json({ message: "Complaint not found" });
     }
 
-    if (complaint.category !== 'Infrastructure') {
-      return res.status(400).json({ message: 'Only infrastructure complaints can be assigned to technicians' });
+    if (complaint.category !== "Infrastructure") {
+      return res
+        .status(400)
+        .json({
+          message:
+            "Only infrastructure complaints can be assigned to technicians",
+        });
     }
 
-    if (!['open', 'reopened'].includes(complaint.status)) {
-      return res.status(400).json({ message: `Cannot assign a complaint with status "${complaint.status}"` });
+    if (!["open", "reopened"].includes(complaint.status)) {
+      return res
+        .status(400)
+        .json({
+          message: `Cannot assign a complaint with status "${complaint.status}"`,
+        });
     }
 
     // Verify technician exists
     const technician = await Technician.findById(technicianId);
     if (!technician) {
-      return res.status(404).json({ message: 'Technician not found' });
+      return res.status(404).json({ message: "Technician not found" });
     }
 
     complaint.assignedTo = technicianId;
-    complaint.status = 'assigned';
+    complaint.status = "assigned";
     await complaint.save();
 
     await logAction({
       complaintId: complaint._id,
       actorId: req.user.id,
-      actorModel: 'DeptAdmin',
-      action: 'ASSIGNED',
-      details: `Assigned to technician ${technician.name} (${technicianId})`
+      actorModel: "DeptAdmin",
+      action: "ASSIGNED",
+      details: `Assigned to technician ${technician.name} (${technicianId})`,
     });
 
     // Notify technician
     await notify({
       userId: technicianId,
-      userModel: 'Technician',
+      userModel: "Technician",
       message: `New complaint assigned to you: "${complaint.title}"`,
-      type: 'complaint_assigned',
-      complaintId: complaint._id
+      type: "complaint_assigned",
+      complaintId: complaint._id,
     });
 
     // Notify student
     await notify({
       userId: complaint.student,
-      userModel: 'Student',
+      userModel: "Student",
       message: `Your complaint "${complaint.title}" has been assigned to a technician`,
-      type: 'complaint_assigned',
-      complaintId: complaint._id
+      type: "complaint_assigned",
+      complaintId: complaint._id,
     });
 
-    res.status(200).json({ message: 'Complaint assigned', complaint });
+    res.status(200).json({ message: "Complaint assigned", complaint });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -585,54 +651,67 @@ export const updateStatus = async (req, res) => {
     const complaint = await Complaint.findById(req.params.id);
 
     if (!complaint) {
-      return res.status(404).json({ message: 'Complaint not found' });
+      return res.status(404).json({ message: "Complaint not found" });
     }
 
     // Define allowed transitions per role
     const TRANSITIONS = {
       Technician: {
-        assigned: ['in_progress'],
-        in_progress: ['resolved'],
-        reopened: ['in_progress']
+        assigned: ["in_progress"],
+        in_progress: ["resolved"],
+        reopened: ["in_progress"],
       },
       Teacher: {
-        assigned: ['in_progress'],
-        in_progress: ['resolved'],
-        reopened: ['in_progress']
+        assigned: ["in_progress"],
+        in_progress: ["resolved"],
+        reopened: ["in_progress"],
       },
       DeptAdmin: {
-        assigned: ['in_progress'],
-        in_progress: ['resolved'],
-        resolved: ['closed'],
-        reopened: ['in_progress', 'assigned']
-      }
+        assigned: ["in_progress"],
+        in_progress: ["resolved"],
+        resolved: ["closed"],
+        reopened: ["in_progress", "assigned"],
+      },
     };
 
     const allowed = TRANSITIONS[role];
     if (!allowed) {
-      return res.status(403).json({ message: 'Your role cannot update complaint status' });
+      return res
+        .status(403)
+        .json({ message: "Your role cannot update complaint status" });
     }
 
     const validNext = allowed[complaint.status];
     if (!validNext || !validNext.includes(status)) {
       return res.status(400).json({
         message: `Cannot transition from "${complaint.status}" to "${status}" as ${role}`,
-        allowedTransitions: validNext || []
+        allowedTransitions: validNext || [],
       });
     }
 
     // Verify the user is actually assigned to this complaint
-    if (role === 'Technician' && complaint.assignedTo?.toString() !== req.user.id) {
-      return res.status(403).json({ message: 'This complaint is not assigned to you' });
+    if (
+      role === "Technician" &&
+      complaint.assignedTo?.toString() !== req.user.id
+    ) {
+      return res
+        .status(403)
+        .json({ message: "This complaint is not assigned to you" });
     }
-    if (role === 'Teacher' && !complaint.assignedTeachers.map(t => t.toString()).includes(req.user.id)) {
-      return res.status(403).json({ message: 'This complaint is not assigned to you' });
+    if (
+      role === "Teacher" &&
+      !complaint.assignedTeachers.map((t) => t.toString()).includes(req.user.id)
+    ) {
+      return res
+        .status(403)
+        .json({ message: "This complaint is not assigned to you" });
     }
 
     const oldStatus = complaint.status;
     complaint.status = status;
 
-    if (status === 'resolved') {
+
+    if (status === "resolved") {
       complaint.resolvedAt = new Date();
     }
 
@@ -642,23 +721,23 @@ export const updateStatus = async (req, res) => {
       complaintId: complaint._id,
       actorId: req.user.id,
       actorModel: role,
-      action: 'STATUS_UPDATE',
-      details: `Status changed: ${oldStatus} → ${status} by ${role}`
+      action: "STATUS_UPDATE",
+      details: `Status changed: ${oldStatus} → ${status} by ${role}`,
     });
 
     // Notify student about status change
     await notify({
       userId: complaint.student,
-      userModel: 'Student',
-      message: `Your complaint "${complaint.title}" status updated to ${status.replace('_', ' ').toUpperCase()}`,
-      type: status === 'resolved' ? 'complaint_resolved' : 'status_change',
-      complaintId: complaint._id
+      userModel: "Student",
+      message: `Your complaint "${complaint.title}" status updated to ${status.replace("_", " ").toUpperCase()}`,
+      type: status === "resolved" ? "complaint_resolved" : "status_change",
+      complaintId: complaint._id,
     });
 
     res.status(200).json({ message: `Status updated to ${status}`, complaint });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -666,33 +745,82 @@ export const updateStatus = async (req, res) => {
 // DeptAdmin gets list of technicians in their department for assignment
 export const getDepartmentTechnicians = async (req, res) => {
   try {
-    const DeptAdmin = (await import('../models/deptAdmin.js')).default;
+    const DeptAdmin = (await import("../models/deptAdmin.js")).default;
     const admin = await DeptAdmin.findById(req.user.id);
     if (!admin) {
-      return res.status(404).json({ message: 'Admin not found' });
+      return res.status(404).json({ message: "Admin not found" });
     }
 
-    const technicians = await Technician.find({ department: admin.department })
-      .select('name email employeeId specialization');
+    const technicians = await Technician.find({
+      department: admin.department,
+    }).select("name email employeeId specialization");
 
     // Get active complaint count per technician
     const techsWithWorkload = await Promise.all(
       technicians.map(async (tech) => {
         const activeCount = await Complaint.countDocuments({
           assignedTo: tech._id,
-          status: { $in: ['assigned', 'in_progress'] }
+          status: { $in: ["assigned", "in_progress"] },
         });
         return {
           ...tech.toObject(),
-          activeComplaints: activeCount
+          activeComplaints: activeCount,
         };
-      })
+      }),
     );
 
     res.status(200).json({ technicians: techsWithWorkload });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+};
+
+// ─── GET /api/complaints/teachers ─────────────────────────────────────────
+// Dropdown of teachers in the department while filing complaint
+export const getTeachersByStudentDept = async (req, res) => {
+  try {
+    const studentId = req.user.id; // from JWT
+
+    const student = await Student.findById(studentId);
+
+    if (!student) {
+      return res.status(404).json({ message: "Student not found" });
+    }
+
+    const teachers = await Teacher.find({
+      departmentId: student.departmentId,
+    });
+
+    res.json(teachers);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+export const addTeacherRemark = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { teacherRemark } = req.body;
+
+    const complaint = await Complaint.findById(id);
+
+    if (!complaint) {
+      return res.status(404).json({ message: "Complaint not found" });
+    }
+
+    complaint.teacherRemark = teacherRemark;
+    await complaint.save();
+
+    res.json({
+      message: "Remark added successfully",
+      complaint,
+    });
+  } catch (err) {
+    res.status(500).json({
+      message: "Server error",
+      error: err.message,
+    });
   }
 };
 
@@ -701,13 +829,13 @@ export const getDepartmentTechnicians = async (req, res) => {
 export const getComplaintById = async (req, res) => {
   try {
     const complaint = await Complaint.findById(req.params.id)
-      .populate('student', 'name email department year')
-      .populate('assignedTeachers', 'name email department')
-      .populate('assignedTo', 'name email specialization department')
-      .populate('department', 'name');
+      .populate("student", "name email department year")
+      .populate("assignedTeachers", "name email department")
+      .populate("assignedTo", "name email specialization department")
+      .populate("department", "name");
 
     if (!complaint) {
-      return res.status(404).json({ message: 'Complaint not found' });
+      return res.status(404).json({ message: "Complaint not found" });
     }
 
     // Access control
@@ -716,19 +844,23 @@ export const getComplaintById = async (req, res) => {
 
     const isOwner = complaint.student._id.toString() === userId;
     const isAssignedTech = complaint.assignedTo?._id?.toString() === userId;
-    const isAssignedTeacher = complaint.assignedTeachers.some(t => t._id.toString() === userId);
-    const isDeptAdmin = role === 'DeptAdmin';
+    const isAssignedTeacher = complaint.assignedTeachers.some(
+      (t) => t._id.toString() === userId,
+    );
+    const isDeptAdmin = role === "DeptAdmin";
 
     if (!isOwner && !isAssignedTech && !isAssignedTeacher && !isDeptAdmin) {
       if (complaint.isPrivate) {
-        return res.status(403).json({ message: 'Access denied — private complaint' });
+        return res
+          .status(403)
+          .json({ message: "Access denied — private complaint" });
       }
     }
 
     res.status(200).json({ complaint });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
 
@@ -738,11 +870,11 @@ export const getComplaintAuditLog = async (req, res) => {
   try {
     const logs = await AuditLog.find({ complaint: req.params.id })
       .sort({ createdAt: -1 })
-      .populate('actor', 'name email');
+      .populate("actor", "name email");
 
     res.status(200).json({ logs });
   } catch (err) {
     console.error(err);
-    res.status(500).json({ message: 'Server error', error: err.message });
+    res.status(500).json({ message: "Server error", error: err.message });
   }
 };
