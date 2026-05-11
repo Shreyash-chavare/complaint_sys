@@ -11,7 +11,11 @@ const app = express();
 const PORT = process.env.PORT || 5005;
 connectDB();
 
-app.use(cors());
+app.use(cors({
+  origin: 'https://complaint-sys-lzpp.vercel.app', // your frontend URL
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+  credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
